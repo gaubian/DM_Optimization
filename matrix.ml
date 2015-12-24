@@ -42,6 +42,11 @@ let iter : matrix -> (int -> int -> float -> unit) -> unit =
     fun ((m,n,_) as mat) f ->
         ignore @@ map mat (fun i j x -> f i j x; 0.)
 
+let fold_left : matrix -> (int -> int -> 'a -> float -> 'a) -> 'a -> 'a =
+    fun mat f a ->
+        let x = ref a in
+            iter mat (fun i j y -> x := f i j !x y); !x  
+
 let print : matrix -> unit =
     fun mat ->
         iter mat (fun _ j x -> print_string @@
