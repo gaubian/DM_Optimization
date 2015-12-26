@@ -50,12 +50,11 @@ let change_basis : basis -> int -> int -> basis =
         (IntSet.add i_in (IntSet.remove i_out b),
          IntSet.add i_out (IntSet.remove i_in b))
 
-let rec one_step : problem -> basis -> matrix -> choic -> choic -> matrix =
+let rec solve : problem -> basis -> matrix -> choic -> choic -> matrix =
     fun prob bas x choic_in choic_out ->
         let r = reduced_cost prob bas in
         match fold_left r
-        (fun i _ l x -> if x < 0. then (i,x)::l else l)
-        []
+        (fun i _ l x -> if x < 0. then (i,x)::l else l) []
         with [] -> x
             | l -> let j = choic_in l in
                    let d = desc_dir prob bas j in
@@ -67,5 +66,43 @@ let rec one_step : problem -> basis -> matrix -> choic -> choic -> matrix =
                    ) (0.,[])
                    with (0.,_) -> raise Unbounded
                        |(y,l) -> let k = choic_out l in
-                                 one_step prob (change_basis bas j k)
+                                 solve prob (change_basis bas j k)
                                  (x |+ (y |*. d)) choic_in choic_out
+
+let basis_from_point : matrix -> int -> basis =
+    fun x m ->
+        let open IntSet in
+        let rec incl : int -> basis -> basis =
+            fun i (b,n) ->
+                if i = nb_l x
+                    then (b,n)
+                    else incl (i+1)
+                  (if (x |. (i,0)) > 0. then (add i b ,n) else (b,add i n))
+        and compl : int -> basis -> basis =
+            fun i (b,n) ->
+                if i = m
+                    then (b,n)
+                    else compl (i+1)
+                       (let a = choose n in (add a b, remove a n))
+        in
+        let (b,n) = incl 0 (empty,empty) in
+            compl (cardinal b) (b,n)
+
+let start_point : problem -> matrix -> choic -> choic -> (matrix*basis) =
+    fun (c,a) b choic_in choic_out ->
+        let c' = init (nb_l a + nb_c a) 1
+            (fun i _ -> if i < nb_c a then 0. else 1.)
+        and d = init (nb_l a) (nb_l a) (fun i j ->
+            if i <> j then 0. else if (b |. (i,0) >= 0.) then 1. else -1.)
+        in
+        let a' = to_right a d and st = to_right (zeros (nb_c a) 1) (d |* b)
+        in
+        let sol = solve (c',a') (basis_from_point st (nb_l a)) st
+        choic_in choic_out in
+        let x = extract_block sol (nb_l a) 1 0 0 in
+            (x,(basis_from_point x (nb_l a)))
+
+let simplex : problem -> matrix -> choic -> choic -> matrix =
+    fun prob b choic_in choic_out ->
+        let (st,bas) = start_point prob b choic_in choic_out in
+             solve prob bas st choic_in choic_out
