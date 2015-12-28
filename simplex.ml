@@ -1,8 +1,8 @@
 open Matrix
 
-let (/.) a b = if b = 0. then infinity else a /. b
-
-let debug = Printf.printf "COUCOU%d%!\n"
+let (/.) : float -> float -> float =
+    fun a b ->
+        if b = 0. then infinity else a /. b
 
 module Int =
        struct
@@ -35,7 +35,7 @@ let reduced_cost : problem -> basis -> matrix =
     fun (c,a) (b,n) ->
         let a_b = extracted_c a b and c_b = extracted_l c b
         and a_n = extracted_c a n and c_n = extracted_l c n in
-            c_n |- (trans a_n) |* (inv (trans a_b)) |* c_b
+            c_n |- ((trans a_n) |* (inv (trans a_b)) |* c_b)
 
 let desc_dir : problem -> basis -> int -> matrix =
     fun (_,a) (b,n) j ->
@@ -53,11 +53,11 @@ let desc_dir : problem -> basis -> int -> matrix =
 let print_bas : basis -> unit =
     fun (b,n) ->
         let open IntSet in
+            print_newline ();
             print_endline "B";
             iter print_int b;
             print_endline "N";
-            iter print_int n;
-            print_newline ()
+            iter print_int n
 
 let change_basis : basis -> int -> int -> basis =
     fun (b,n) i_in i_out ->
@@ -73,23 +73,12 @@ let rec j_th_littlest : IntSet.t -> int -> int =
 
 let rec solve : problem -> basis -> matrix -> choic -> choic -> matrix =
     fun prob bas x choic_in choic_out ->
-        print_endline "a";
-        print (snd prob);
-        Printf.printf "\nc\n";
-        print (fst prob);
-        Printf.printf "\nx\n";
-        print x;
         let r = reduced_cost prob bas in
-        Printf.printf "\nr\n";
-        print r;
         match fold_left r
         (fun i _ l x -> if x < 0. then (i,x)::l else l) []
         with [] -> x
             | l -> let j = j_th_littlest (snd bas) (choic_in l) in
-                   Printf.printf "\nj:%d\n" j;
                    let d = desc_dir prob bas j in
-                   Printf.printf "\nd\n";
-                   print d;
                    match IntSet.fold (fun i (y,l,flg) ->
                        let d_i = d |. (i,0) in
                        let flg' = flg || d_i < 0. in
@@ -133,7 +122,7 @@ let start_point : problem -> matrix -> choic -> choic -> (matrix*basis) =
         in
         let sol = solve (c',a') (basis_from_point st (nb_l a)) st
         choic_in choic_out in
-        let x = extract_block sol (nb_l a) 1 0 0 in
+        let x = extract_block sol (nb_c a) 1 0 0 in
             (x,(basis_from_point x (nb_l a)))
 
 let simplex : problem -> matrix -> choic -> choic -> matrix =
@@ -145,9 +134,10 @@ let trivial_choic : choic =
     fun l ->
         fst (List.hd l)
 
+
 let a = ones 1 2;;
-let c = eye 2 1 0 0;;
+let c = (eye 2 1 0 0);;
 let b = ones 1 1;;
 let agjzri = (simplex (c,a) b trivial_choic trivial_choic) in
-    Printf.printf "coucouaefa";
+    Printf.printf "\nRésultat:\n";
     print agjzri;;
