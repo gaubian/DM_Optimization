@@ -1,6 +1,8 @@
 type matrix = int * int * float array array
 
 exception Finished of int
+exception Outside_of_matrix
+exception Not_same_size
 
 let init : int -> int -> (int -> int -> float) -> matrix =
     fun m n f ->
@@ -19,8 +21,10 @@ let nb_c : matrix -> int =
         n
 
 let (|.) : matrix -> (int * int) -> float =
-    fun (_,_,tab) (i,j) ->
-        tab.(i).(j)
+    fun (m,n,tab) (i,j) ->
+        if i >= m || i < 0 || j >= n || j < 0
+            then raise Outside_of_matrix
+            else tab.(i).(j)
 
 let (|.-) : matrix -> int -> matrix =
     fun mat i ->
@@ -31,8 +35,10 @@ let (|.|) : matrix -> int -> matrix =
         init (nb_l mat) 1 @@ fun i _ -> mat |. (i,j)
 
 let (|=) : matrix -> (int * int) -> float -> unit =
-    fun (_,_,tab) (i,j) el ->
-        tab.(i).(j) <- el
+    fun (m,n,tab) (i,j) el ->
+        if i < 0 || i >= m || j < 0 || j >= n
+            then raise Outside_of_matrix
+            else tab.(i).(j) <- el
 
 let map : matrix -> (int -> int -> float -> float) -> matrix =
     fun ((m,n,_) as mat) f ->
@@ -265,8 +271,6 @@ let inv : matrix -> matrix =
             done;
         done;
         for i=nb_l mat - 1 downto 0 do
-            print mat;
-            print mat';
             let lin = (1. /. (mat |. (i,i))) |*. (mat |.- i)
             and li' = (1. /. (mat |. (i,i))) |*. (mat' |.- i) in
             for j = i-1 downto 0 do
