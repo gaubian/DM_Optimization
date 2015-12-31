@@ -1,12 +1,23 @@
-open Matrix
+module FloatField = struct
+    type t = float
+    let e_add = 0.
+    let e_mul = 1.
+    let ( +. ) = ( +. )
+    let ( -. ) = ( -. )
+    let ( *. ) = ( *. )
+    let ( /. ) = ( /. )
+    let print = print_float
+end
 
-module Int =
-       struct
-         type t = int
-         let compare = compare
-       end
+module Int = struct
+    type t = int
+    let compare = compare
+end
 
+module FloatMatrix = Matrix.Make(FloatField)
 module IntSet = Set.Make(Int)
+
+open FloatMatrix
 
 exception Unbounded
 exception No_solution
@@ -59,6 +70,13 @@ let rec j_th_littlest : IntSet.t -> int -> int =
                 |0 -> a
                 |_ -> j_th_littlest (IntSet.remove a b) (i-1)
 
+let wo_useless : problem -> problem =
+    fun (c,a,b) ->
+        let ab' = independant_lines (to_right a b) in
+        let a' = extract_block ab' (nb_l ab') (nb_c ab' - 1) 0 0
+        and b' = (ab') |.| (nb_c ab' - 1) in
+            (c,a',b')
+
 let rec solve : problem -> basis -> matrix -> choice -> matrix =
     fun prob bas x ({c_in = choic_in;c_out = choic_out} as choice_f) ->
         let r = reduced_cost prob bas in
@@ -105,7 +123,8 @@ let start_point : problem -> choice -> (matrix*basis) =
         and d = init (nb_l a) (nb_l a) (fun i j ->
             if i <> j then 0. else if (b |. (i,0) >= 0.) then 1. else -1.)
         in
-        let a'= to_right a d and st= to_down (zeros (nb_c a) 1) (d |* b) in
+        let a'= to_right a d
+        and st= to_down (zeros (nb_c a) 1) (d |* b) in
         let sol=solve (c',a',b) (basis_from_point st (nb_l a)) st choice_f
         in
         let x = extract_block sol (nb_c a) 1 0 0 in
@@ -119,8 +138,9 @@ let trivial_choic : choice =
 
 let simplex_w_eq : problem -> choice -> matrix =
     fun prob choice_f ->
-        let st,bas = start_point prob choice_f in
-             solve prob bas st choice_f
+        let prob' = wo_useless prob in
+        let st,bas = start_point prob' choice_f in
+             solve prob' bas st choice_f
 
 let simplex : final_problem -> choice -> matrix =
     fun ({eq=a_eq,b_eq;les=a_les,b_les;mor=a_mor,b_mor;_} as pb) choice_f->
@@ -143,5 +163,5 @@ let a = to_down (ones 1 2) (zeros 1 2);;
 let c = eye 2 1 0 0;;
 let b = to_down (ones 1 1) (zeros 1 1);;
 let agjzri = (simplex_w_eq (c,a,b) trivial_choic) in
-    Printf.printf "\nRésultat:\n";
+    Printf.printf "Résultat:\n";
     print agjzri;;
