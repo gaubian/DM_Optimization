@@ -84,15 +84,21 @@ module Make (F : Field) = struct
 
     let (|+) : matrix -> matrix -> matrix =
         fun mat mat' ->
-	    map mat (fun i j -> (+.) (mat' |. (i,j)))
+	    if nb_l mat <> nb_l mat' || nb_c mat <> nb_c mat'
+                then raise Not_same_size
+                else map mat (fun i j -> (+.) (mat' |. (i,j)))
 
     let (|-) : matrix -> matrix -> matrix =
         fun mat mat' ->
-	    map mat' (fun i j -> (-.) (mat |. (i,j)))
+	    if nb_l mat <> nb_l mat' || nb_c mat <> nb_c mat'
+                then raise Not_same_size
+                else map mat' (fun i j -> (-.) (mat |. (i,j)))
 
     let (|* ) : matrix -> matrix -> matrix =
         fun ((m,n,tab) as mat) ((o,p,_) as mat') ->
-	    init m p (fun i j -> Array.fold_left (+.) e_add
+            if n <> o
+                then raise Not_same_size
+	        else init m p (fun i j -> Array.fold_left (+.) e_add
 	       (Array.init n (fun k -> (mat |. (i,k)) *. (mat' |. (k,j)))))
 
     let (|*.) : F.t -> matrix -> matrix =
@@ -160,14 +166,18 @@ module Make (F : Field) = struct
 
     let to_right : matrix -> matrix -> matrix =
         fun mat mat' ->
-	    init (nb_l mat) (nb_c mat + nb_c mat') (fun i j ->
+            if nb_l mat <> nb_l mat'
+                then raise Not_same_size
+	        else init (nb_l mat) (nb_c mat + nb_c mat') (fun i j ->
 	        if j < nb_c mat
                     then mat |. (i,j)
                     else mat' |. (i,j- nb_c mat))
 
     let to_down : matrix -> matrix -> matrix =
         fun mat mat' ->
-	    init (nb_l mat + nb_l mat') (nb_c mat) (fun i j ->
+            if nb_c mat <> nb_c mat'
+                then raise Not_same_size
+	        else init (nb_l mat + nb_l mat') (nb_c mat) (fun i j ->
 	        if i < nb_l mat
                     then mat |. (i,j)
                     else mat' |. (i- nb_l mat,j))
@@ -238,7 +248,7 @@ module Make (F : Field) = struct
 	    for i=0 to nb_l mat - 1 do
 	        try
 	        for j = i to nb_l mat - 1 do
-	            if mat |. (j,i) > e_add
+	            if mat |. (j,i) <> e_add
 	                then raise (Finished(j));
 	        done;
 	        with Finished(j) -> if j<>i
@@ -269,7 +279,7 @@ module Make (F : Field) = struct
 	    for i=0 to nb_l mat - 1 do
 	        try
 	        for j = i to nb_l mat - 1 do
-	            if mat |. (j,i) > e_add
+	            if mat |. (j,i) <> e_add
 	                then raise (Finished(j));
 	        done;
 	        with Finished(j) -> if j<>i then
@@ -299,20 +309,55 @@ module Make (F : Field) = struct
            |i when i < 0 -> (inv mat) |^ (-i)
            |i -> (fun sq -> if i mod 2 = 0 then sq |* sq else mat |* sq |* sq) (mat |^ (i/2))
 
-    let independant_lines : matrix -> matrix =
+    let independant_lines : matrix -> int list =
         fun mat' ->
             let l = ref [] and mat = copy mat' in
             for i=0 to nb_l mat-1 do
                 match fold_left (mat |.- i)
                 (fun _ j a k-> if k <> e_add then j else a) (-1)
                 with | -1  -> ()
-                     | n_z -> l := (mat' |.- i)::!l;
+                     | n_z -> l := i::!l;
                    let lin = (e_mul /. (mat |. (i,n_z))) |*. (mat |.- i) in
                 for j=i+1 to nb_l mat-1 do
                   inject mat ((mat |.- j)|-((mat |. (j,n_z)) |*. lin)) j 0;
                 done;
             done;
-            concat_down !l
+            List.rev !l
+
+    let linear_solver : matrix -> matrix -> matrix =
+        fun a b ->
+	    let mat = copy a in
+	    let mat' = copy b in
+	    for i=0 to nb_l mat - 1 do
+	        try
+	        for j = i to nb_l mat - 1 do
+	            if mat |. (j,i) <> e_add
+	                then raise (Finished(j));
+	        done;
+	        with Finished(j) -> if j<>i then
+                                    (switch_l mat' i j;switch_l mat i j);
+                if mat |. (i,i) <> e_add
+                    then
+	        (let lin = (e_mul /. (mat |. (i,i))) |*. (mat |.- i)
+	        and li' = (e_mul /. (mat |. (i,i))) |*. (mat' |.- i) in
+	        for j = i+1 to nb_l mat - 1 do
+	            inject mat' ((mat' |.- j) |- ((mat |. (j,i)) |*. li')) j 0;
+                    inject mat ((mat |.- j) |- ((mat |. (j,i)) |*. lin)) j 0;
+	        done;)
+	    done;
+	    for i=nb_l mat - 1 downto 0 do
+                if mat |. (i,i) <> e_add
+                    then(
+	        let lin = (e_mul /. (mat |. (i,i))) |*. (mat |.- i)
+	        and li' = (e_mul /. (mat |. (i,i))) |*. (mat' |.- i) in
+	        for j = i-1 downto 0 do
+	            inject mat' ((mat' |.- j) |- ((mat |. (j,i)) |*. li')) j 0;
+	            inject mat ((mat |.- j) |- ((mat |. (j,i)) |*. lin)) j 0 ;
+	        done);
+            done;
+            iter (to_diag mat) (fun _ j x -> if x <> e_add then
+            inject mat' ((e_mul /. x) |*. (mat' |.- j)) j 0);
+            mat'
 
     let print : matrix -> unit =
         fun mat ->
