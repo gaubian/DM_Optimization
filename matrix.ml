@@ -303,6 +303,15 @@ module Make (F : Field) = struct
             inject mat' ((e_mul /. x) |*. (mat' |.- j)) j 0);
             mat'
 
+    let exists : matrix -> (int -> int -> F.t -> bool) -> bool =
+        fun mat f ->
+            fold_left mat (fun i j res x -> res || (f i j x)) false
+
+    let for_all : matrix -> (int -> int -> F.t -> bool) -> bool =
+        fun mat f ->
+            fold_left mat (fun i j res x -> res && (f i j x)) true
+            
+
     let rec (|^) : matrix -> int -> matrix =
         fun mat -> function
             0 -> id (nb_l mat)
@@ -323,6 +332,10 @@ module Make (F : Field) = struct
                 done;
             done;
             List.rev !l
+
+    let rank : matrix -> int =
+        fun mat ->
+            List.length (independant_lines mat)
 
     let linear_solver : matrix -> matrix -> matrix =
         fun a b ->

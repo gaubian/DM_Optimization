@@ -1,3 +1,12 @@
+let (/.) : float -> float -> float =
+    fun a b ->
+        if a /. b = nan then failwith "Pas Content!" else a /. b
+
+let ( *. ) : float -> float -> float =
+    fun a b ->
+        if b *. a = nan then failwith "Pas Content" else a *. b
+
+
 module FloatField = struct
     type t = float
     let e_add = 0.
@@ -27,10 +36,6 @@ type problem = matrix * matrix * matrix
 type choice = {c_in:(int*float) list -> int;c_out:(int*float) list -> int}
 type rest = matrix * matrix
 type final_problem = {minim:bool; obj:matrix; eq:rest; les:rest; mor:rest}
-
-let (/.) : float -> float -> float =
-    fun a b ->
-        if b = 0. then infinity else a /. b
 
 let extracted_c : matrix -> IntSet.t -> matrix =
     fun mat set ->
@@ -71,6 +76,13 @@ let rec j_th_littlest : IntSet.t -> int -> int =
                 |0 -> a
                 |_ -> j_th_littlest (IntSet.remove a b) (i-1)
 
+let make_surj : problem -> problem =
+    fun (c,a,b) ->
+        independant_lines a
+        |> List.filter (fun i -> exists (a |.- i) (fun _ _ -> (<) 0.))
+        |> fun l -> (List.map ((|.-) a) l,List.map ((|.-) b) l)
+        |> fun (l',l'') -> (c,concat_down l',concat_down l'')
+
 let rec solve : problem -> basis -> matrix -> choice -> matrix =
     fun prob bas x ({c_in = choic_in;c_out = choic_out} as choice_f) ->
         let r = reduced_cost prob bas in
@@ -92,9 +104,30 @@ let rec solve : problem -> basis -> matrix -> choice -> matrix =
                                  solve prob (change_basis bas j k)
                                  (x |+ (y |*. d)) choice_f
 
-let basis_from_point : matrix -> int -> basis =
-    fun x m ->
+let basis_from_point : matrix -> matrix -> basis =
+    fun mat' x ->
         let open IntSet in
+        let rec construct (b,n) i = function
+            | t::q when t=i -> construct (add i b, n) (i+1) q
+            | _ when i = nb_c mat' -> (b,n)
+            | l                    -> construct (b,add i n) (i+1) l
+        in
+        let mat = trans mat' in
+        fold_left x (fun i _ l y -> if y <> 0. then i::l else l) []
+        |> fun l -> List.map ((|.-) mat) l
+        |> concat_down
+        |> to_up mat
+        |> independant_lines
+        |> List.filter ((<) (List.length l - 1))
+        |> List.map (fun i -> i - List.length l)
+        |> (@) l
+        |> List.fold_left (fun (l',rem) i ->
+           (if rem <= 0 then (l',rem) else (i::l', rem - 1))) ([],nb_c mat)
+        |> fst
+        |> List.sort Pervasives.compare
+        |> construct (empty,empty) 0
+
+(*        let open IntSet in
         let rec incl : int -> basis -> basis =
             fun i (b,n) ->
                 if i = nb_l x
@@ -109,7 +142,7 @@ let basis_from_point : matrix -> int -> basis =
                        (let a = choose n in (add a b, remove a n))
         in
         let (b,n) = incl 0 (empty,empty) in
-            compl (cardinal b) (b,n)
+            compl (cardinal b) (b,n)*)
 
 let start_point : problem -> choice -> (matrix*basis) =
     fun (c,a,b) choice_f ->
@@ -120,11 +153,11 @@ let start_point : problem -> choice -> (matrix*basis) =
         in
         let a'= to_right a d
         and st= to_down (zeros (nb_c a) 1) (d |* b) in
-        let sol=solve (c',a',b) (basis_from_point st (nb_l a)) st choice_f
+        let sol=solve (c',a',b) (basis_from_point a' st) st choice_f
         in
         let x = extract_block sol (nb_c a) 1 0 0 in
             if a |* x = b
-                then (x,(basis_from_point x (nb_l a)))
+                then (x,(basis_from_point a x))
                 else raise No_solution
 
 let trivial_choic : choice =
@@ -133,8 +166,9 @@ let trivial_choic : choice =
 
 let simplex_w_eq : problem -> choice -> matrix =
     fun prob choice_f ->
-        let st,bas = start_point prob choice_f in
-             solve prob bas st choice_f
+        let prob' = make_surj prob in
+        let st,bas = start_point prob' choice_f in
+             solve prob' bas st choice_f
 
 let simplex : final_problem -> choice -> matrix =
     fun ({eq=a_eq,b_eq;les=a_les,b_les;mor=a_mor,b_mor;_} as pb) choice_f->
@@ -142,15 +176,12 @@ let simplex : final_problem -> choice -> matrix =
         and b_ineq = to_down b_les ((-1.) |*. b_mor) in
         let a_ineq_pos = to_right a_ineq ((-1.) |*. a_ineq)
         and a_eq_pos = to_right a_eq ((-1.) |*. a_eq)
-        and b_not_surj = to_down b_eq b_ineq in
-        let l_ind = independant_lines (to_right (to_down a_eq_pos a_ineq_pos) b_not_surj) in
+        and b_final = to_down b_eq b_ineq in
         let a_ineq_f = to_right a_ineq_pos (id (nb_l a_ineq))
         and a_eq_f = to_right a_eq_pos (zeros (nb_l a_eq_pos) (nb_l a_ineq)) in
-        let a_not_surj = to_down a_eq_f a_ineq_f
+        let a_final = to_down a_eq_f a_ineq_f
         and c_int = (if pb.minim then 1. else -1.) |*. (pb.obj) in
         let c_final = concat_down [c_int;(-1.) |*. c_int; zeros (nb_l a_ineq) 1] in
-        let a_final = concat_down (List.map ((|.-) a_not_surj) l_ind) in
-        let b_final = concat_down (List.map ((|.-) b_not_surj) l_ind) in
         let x_int = simplex_w_eq (c_final,a_final,b_final) choice_f in
             (extract_block x_int (nb_c a_les) 1 0 0) |-
             (extract_block x_int (nb_c a_les) 1 (nb_c a_les) 0)
@@ -159,7 +190,7 @@ let simplex : final_problem -> choice -> matrix =
 
 (*
 First Example:
-
+*)
 let a_eq = ones 1 3;;
 let b_eq = ones 1 1;;
 let a_les = id 3;;
@@ -169,13 +200,14 @@ let b_mor = zeros 3 1;;
 
 let c = eye 3 1 1 0;;
 
-let prob = {minim=false; obj=c; eq=(a_eq,b_eq); les=(a_les,b_les); mor=(a_mor,b_mor)};;
+let prob = {minim=true; obj=c; eq=(a_eq,b_eq); les=(a_les,b_les); mor=(a_mor,b_mor)};;
 
 print (simplex prob trivial_choic);;
-*)
+
 
 (*
 Second Example:
+
 
 let a_eq = ones 1 2;;
 let b_eq = ones 1 1;;
