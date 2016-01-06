@@ -1,15 +1,4 @@
-module type Field = sig
-    type t
-    val e_add : t
-    val e_mul : t
-    val ( +. ) : t -> t -> t
-    val ( -. ) : t -> t -> t
-    val ( *. ) : t -> t -> t
-    val ( /. ) : t -> t -> t
-    val print : t -> unit
-end
-
-module Make (F : Field) = struct
+module Make (F : Structures.Field) = struct
     open F
     type matrix = int * int * F.t array array
 
@@ -47,7 +36,7 @@ module Make (F : Field) = struct
         fun mat j ->
 	    init (nb_l mat) 1 @@ fun i _ -> mat |. (i,j)
 
-    let (|=) : matrix -> (int * int) -> F.t -> unit =
+    let (|<-) : matrix -> (int * int) -> F.t -> unit =
         fun (m,n,tab) (i,j) el ->
 	    if i < 0 || i >= m || j < 0 || j >= n
 	        then raise Outside_of_matrix
@@ -66,6 +55,14 @@ module Make (F : Field) = struct
 	    let x = ref a in
 	        iter mat (fun i j y -> x := f i j !x y); !x
 
+    let exists : matrix -> (int -> int -> F.t -> bool) -> bool =
+        fun mat f ->
+            fold_left mat (fun i j res x -> res || (f i j x)) false
+
+    let for_all : matrix -> (int -> int -> F.t -> bool) -> bool =
+        fun mat f ->
+            fold_left mat (fun i j res x -> res && (f i j x)) true
+
     let trans : matrix -> matrix =
         fun mat ->
 	    init (nb_c mat) (nb_l mat) @@ fun i j -> mat |. (j,i)
@@ -81,6 +78,14 @@ module Make (F : Field) = struct
     let of_f : F.t -> matrix =
         fun x ->
 	    (1,1,[|[|x|]|])
+
+    let (|=) : matrix -> matrix -> bool =
+        fun mat mat' ->
+            for_all mat (fun i j x -> (mat' |. (i,j)) =. x)
+
+    let (|<>) : matrix -> matrix -> bool =
+        fun mat mat' ->
+            not (mat |= mat')
 
     let (|+) : matrix -> matrix -> matrix =
         fun mat mat' ->
@@ -129,8 +134,8 @@ module Make (F : Field) = struct
         fun mat i j ->
 	    for k = 0 to nb_c mat - 1 do
 	        let z = mat |. (i,k) in
-	            (mat |= (i,k)) (mat |. (j,k));
-	            (mat |= (j,k)) z;
+	            (mat |<- (i,k)) (mat |. (j,k));
+	            (mat |<- (j,k)) z;
 	    done
 
     let switched_l : matrix -> int -> int -> matrix =
@@ -142,8 +147,8 @@ module Make (F : Field) = struct
         fun mat i j ->
 	    for k = 0 to nb_l mat - 1 do
 	        let z = mat |. (k,i) in
-	            (mat |= (k,i)) (mat |. (k,j));
-	            (mat |= (k,j)) z;
+	            (mat |<- (k,i)) (mat |. (k,j));
+	            (mat |<- (k,j)) z;
 	    done
 
     let switched_c : matrix -> int -> int -> matrix =
@@ -155,7 +160,7 @@ module Make (F : Field) = struct
         fun mat mat' i' j' ->
 	    for i = i' to -1 + min (nb_l mat) (i' + nb_l mat') do
 	    for j = j' to -1 + min (nb_c mat) (j' + nb_c mat') do
-	        (mat |= (i,j)) (mat' |. (i-i',j-j'));
+	        (mat |<- (i,j)) (mat' |. (i-i',j-j'));
             done;
 	    done
 
@@ -166,8 +171,12 @@ module Make (F : Field) = struct
 
     let to_right : matrix -> matrix -> matrix =
         fun mat mat' ->
-            if nb_l mat <> nb_l mat'
+            if nb_l mat <> nb_l mat' && (nb_c mat <> 0) && (nb_c mat' <> 0)
                 then raise Not_same_size
+                else if nb_c mat = 0
+                    then mat'
+                else if nb_c mat' = 0
+                    then mat
 	        else init (nb_l mat) (nb_c mat + nb_c mat') (fun i j ->
 	        if j < nb_c mat
                     then mat |. (i,j)
@@ -175,8 +184,12 @@ module Make (F : Field) = struct
 
     let to_down : matrix -> matrix -> matrix =
         fun mat mat' ->
-            if nb_c mat <> nb_c mat'
+            if nb_c mat <> nb_c mat' && (nb_l mat <> 0) && (nb_l mat' <> 0)
                 then raise Not_same_size
+                else if nb_l mat = 0
+                    then mat'
+                else if nb_l mat' = 0
+                    then mat
 	        else init (nb_l mat + nb_l mat') (nb_c mat) (fun i j ->
 	        if i < nb_l mat
                     then mat |. (i,j)
@@ -248,7 +261,7 @@ module Make (F : Field) = struct
 	    for i=0 to nb_l mat - 1 do
 	        try
 	        for j = i to nb_l mat - 1 do
-	            if mat |. (j,i) <> e_add
+	            if mat |. (j,i) <>. e_add
 	                then raise (Finished(j));
 	        done;
 	        with Finished(j) -> if j<>i
@@ -279,7 +292,7 @@ module Make (F : Field) = struct
 	    for i=0 to nb_l mat - 1 do
 	        try
 	        for j = i to nb_l mat - 1 do
-	            if mat |. (j,i) <> e_add
+	            if mat |. (j,i) <>. e_add
 	                then raise (Finished(j));
 	        done;
 	        with Finished(j) -> if j<>i then
@@ -302,15 +315,7 @@ module Make (F : Field) = struct
             iter (to_diag mat) (fun _ j x ->
             inject mat' ((e_mul /. x) |*. (mat' |.- j)) j 0);
             mat'
-
-    let exists : matrix -> (int -> int -> F.t -> bool) -> bool =
-        fun mat f ->
-            fold_left mat (fun i j res x -> res || (f i j x)) false
-
-    let for_all : matrix -> (int -> int -> F.t -> bool) -> bool =
-        fun mat f ->
-            fold_left mat (fun i j res x -> res && (f i j x)) true
-            
+       
 
     let rec (|^) : matrix -> int -> matrix =
         fun mat -> function
@@ -323,7 +328,7 @@ module Make (F : Field) = struct
             let l = ref [] and mat = copy mat' in
             for i=0 to nb_l mat-1 do
                 match fold_left (mat |.- i)
-                (fun _ j a k-> if k <> e_add then j else a) (-1)
+                (fun _ j a k-> if k <>. e_add then j else a) (-1)
                 with | -1  -> ()
                      | n_z -> l := i::!l;
                    let lin = (e_mul /. (mat |. (i,n_z))) |*. (mat |.- i) in
@@ -344,12 +349,12 @@ module Make (F : Field) = struct
 	    for i=0 to nb_l mat - 1 do
 	        try
 	        for j = i to nb_l mat - 1 do
-	            if mat |. (j,i) <> e_add
+	            if mat |. (j,i) <>. e_add
 	                then raise (Finished(j));
 	        done;
 	        with Finished(j) -> if j<>i then
                                     (switch_l mat' i j;switch_l mat i j);
-                if mat |. (i,i) <> e_add
+                if mat |. (i,i) <>. e_add
                     then
 	        (let lin = (e_mul /. (mat |. (i,i))) |*. (mat |.- i)
 	        and li' = (e_mul /. (mat |. (i,i))) |*. (mat' |.- i) in
@@ -359,7 +364,7 @@ module Make (F : Field) = struct
 	        done;)
 	    done;
 	    for i=nb_l mat - 1 downto 0 do
-                if mat |. (i,i) <> e_add
+                if mat |. (i,i) <>. e_add
                     then(
 	        let lin = (e_mul /. (mat |. (i,i))) |*. (mat |.- i)
 	        and li' = (e_mul /. (mat |. (i,i))) |*. (mat' |.- i) in
@@ -368,7 +373,7 @@ module Make (F : Field) = struct
 	            inject mat ((mat |.- j) |- ((mat |. (j,i)) |*. lin)) j 0 ;
 	        done);
             done;
-            iter (to_diag mat) (fun _ j x -> if x <> e_add then
+            iter (to_diag mat) (fun _ j x -> if x <>. e_add then
             inject mat' ((e_mul /. x) |*. (mat' |.- j)) j 0);
             mat'
 
