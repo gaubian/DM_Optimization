@@ -7,7 +7,7 @@ module FloatField = struct
     type t = float
     let e_add = 0.
     let e_mul = 1.
-    let max_field = max_float
+    let max_field = max_float /. 2.
     let ( =. ) = ( = )
     let ( <>. ) = ( <> )
     let ( >=. ) = ( >= )
@@ -22,7 +22,7 @@ module RationalField = struct
     type t = int * int
     let e_add = (0,1)
     let e_mul = (1,1)
-    let max_field = (max_int,1)
+    let max_field = (max_int / 2,1)
     let rec gcd (a,b) = if a = 0 then b else if b=0 then a else gcd (b,a mod b)
     let simpl (a,b) = let c = gcd (a,b) in (a / c, b / c)
     let ( =. ) a b = (simpl a) = (simpl b)
