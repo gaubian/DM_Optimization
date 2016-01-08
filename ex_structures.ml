@@ -45,3 +45,5 @@ struct
         | 0 -> B.compare b d
         | x -> x
 end
+
+module IntPair = MakePair(Int)(Int)

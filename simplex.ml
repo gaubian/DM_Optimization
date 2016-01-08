@@ -9,27 +9,27 @@ module Make (F : Structures.Field) = struct
    exception No_solution
 
    type basis = IntSet.t * IntSet.t
-   type problem = matrix * matrix * matrix
+   type problem = FMatrix.t * FMatrix.t * FMatrix.t
    type choice = {c_in:(int*F.t) list -> int;c_out:(int*F.t) list -> int}
-   type rest = matrix * matrix
-   type t = {minim:bool; obj:matrix; eq:rest; les:rest; mor:rest}
+   type rest = FMatrix.t * FMatrix.t
+   type t = {minim:bool; obj:FMatrix.t; eq:rest; les:rest; mor:rest}
 
-   let extracted_c : matrix -> IntSet.t -> matrix =
+   let extracted_c : FMatrix.t -> IntSet.t -> FMatrix.t =
       fun mat set ->
          IntSet.fold (fun i -> to_left (mat |.| i)) set (ones (nb_l mat) 0)
 
-   let extracted_l : matrix -> IntSet.t -> matrix =
+   let extracted_l : FMatrix.t -> IntSet.t -> FMatrix.t =
       fun mat set ->
          IntSet.fold (fun i -> to_up (mat |.- i)) set (ones 0 (nb_c mat))
 
-   let reduced_cost : problem -> basis -> matrix =
+   let reduced_cost : problem -> basis -> FMatrix.t =
       fun (c,a,_) (b,n) ->
          let a_b = extracted_c a b and c_b = extracted_l c b
          and a_n = extracted_c a n and c_n = extracted_l c n in
          let y = linear_solver (trans a_b) c_b in
             c_n |- ((trans a_n) |* y)
 
-   let desc_dir : problem -> basis ->  int -> matrix =
+   let desc_dir : problem -> basis ->  int -> FMatrix.t =
       fun (_,a,_) (b,n) j ->
          IntSet.(
          let a_b = extracted_c a b
@@ -60,7 +60,7 @@ module Make (F : Structures.Field) = struct
          |> fun l -> (List.map ((|.-) a) l,List.map ((|.-) b) l)
          |> fun (l',l'') -> (c,concat_down l',concat_down l'')
 
-   let rec solve : problem -> basis -> matrix -> choice -> matrix =
+   let rec solve : problem -> basis -> FMatrix.t -> choice -> FMatrix.t =
       fun prob bas x ({c_in = choic_in;c_out = choic_out} as choice_f) ->
          let r = reduced_cost prob bas in
          match fold_left r (fun i _ l x->if x < e_add then (i,x)::l else l) []
@@ -81,7 +81,7 @@ module Make (F : Structures.Field) = struct
                                 solve prob (change_basis bas j k)
                                  (x |+ (y |*. d)) choice_f
 
-   let basis_from_point : matrix -> matrix -> basis =
+   let basis_from_point : FMatrix.t -> FMatrix.t -> basis =
       fun mat' x ->
          let open IntSet in
          let rec construct (b,n) i = function
@@ -104,7 +104,7 @@ module Make (F : Structures.Field) = struct
         |> List.sort Pervasives.compare
         |> construct (empty,empty) 0
 
-   let start_point : problem -> choice -> (matrix*basis) =
+   let start_point : problem -> choice -> (FMatrix.t*basis) =
       fun (c,a,b) choice_f ->
          let c' = init (nb_l a + nb_c a) 1
             (fun i _ -> if i < nb_c a then e_add else e_mul)
@@ -124,13 +124,13 @@ module Make (F : Structures.Field) = struct
       let my_f = fun l -> fst (List.fold_left min (max_int,max_field) l) in
          {c_in = my_f; c_out = my_f}
 
-   let simplex_w_eq : problem -> choice -> matrix =
+   let simplex_w_eq : problem -> choice -> FMatrix.t =
       fun prob choice_f ->
          let prob' = make_surj prob in
          let st,bas = start_point prob' choice_f in
             solve prob' bas st choice_f
 
-   let simplex : t -> choice -> matrix =
+   let simplex : t -> choice -> FMatrix.t =
       fun ({eq=a_eq,b_eq;les=a_les,b_les;mor=a_mor,b_mor;_} as pb) choice_f->
          let a_ineq = to_down a_les ((e_add -. e_mul) |*. a_mor)
          and b_ineq = to_down b_les ((e_add -. e_mul) |*. b_mor) in
@@ -146,7 +146,7 @@ module Make (F : Structures.Field) = struct
             (extract_block x_int (nb_c a_les) 1 0 0) |-
             (extract_block x_int (nb_c a_les) 1 (nb_c a_les) 0)
 
-   let init : bool -> rest -> rest -> rest -> matrix -> choice -> t =
-      fun minim eq les mor obj choice_f ->
+   let init : bool -> rest -> rest -> rest -> FMatrix.t -> t =
+      fun minim eq les mor obj->
          {minim=minim ;obj=obj; eq=eq; les=les; mor=mor}
 end

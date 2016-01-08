@@ -39,18 +39,31 @@ print yolo;;
 *)
 
 module FloatGraph = Weighted_graph.Make(Ex_structures.FloatField)
-
+module FLower_bound = Lower_bound.Make(Ex_structures.FloatField)
 open FloatGraph
+
+(*
+let grph =
+List.fold_left
+add_v empty
+[0;1;4;5]
+;;
+let grph' = List.fold_left (fun grp (i,j,x) -> add_e grp i j x)
+grph [0,1,2.5;0,4,3.;1,4,2.;1,5,2.;5,4,3.];;
+*)
+(* List.iter (Printf.printf "%d\n") (fst (minimum_tour grph)) *)
+(*
+let (l,c) = approx_minimum_tour grph';;
+List.iter (Printf.printf "%d\n") l;
+Printf.printf "%f\n" c
+*)
 
 let grph =
 List.fold_left
 add_v empty
-[0;1;4;5;6]
+[0;1;2]
 ;;
 let grph' = List.fold_left (fun grp (i,j,x) -> add_e grp i j x)
-grph [0,1,2.5;0,4,3.;1,4,2.;1,5,2.;5,4,3.;5,6,7.];;
-(* List.iter (Printf.printf "%d\n") (fst (minimum_tour grph)) *)
-let (l,c) = approx_minimum_tour grph';;
-List.iter (Printf.printf "%d\n") l;
-Printf.printf "%f\n" c
+grph [0,1,1.;1,2,1.;2,0,1.];;
 
+FLower_bound.naive_solve grph'

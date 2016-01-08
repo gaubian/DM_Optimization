@@ -12,11 +12,21 @@ module Make(F : Structures.Field) = struct
     let print_map : F.t IntMap.t -> unit =
         IntMap.iter (fun k x -> Printf.printf "%d\t" k; F.print x; print_newline ())
 
+    let iter : t -> (int -> F.t IntMap.t -> unit) -> unit =
+        fun grph f ->
+            IntMap.iter f grph
+
     let empty : t =
         IntMap.empty
 
     let nb_v : t -> int =
         IntMap.cardinal
+
+    let nb_e : t -> int =
+        fun grph ->
+        let compt = ref 0 in
+            iter grph (fun _ ne -> compt := !compt + IntMap.cardinal ne);
+            !compt/2
 
     let vertices : t -> IntSet.t =
         fun grph ->
