@@ -45,10 +45,12 @@ open FloatGraph
 let grph =
 List.fold_left
 add_v empty
-[0;1;4;5]
+[0;1;4;5;6]
 ;;
 let grph' = List.fold_left (fun grp (i,j,x) -> add_e grp i j x)
-grph [0,1,2.5;0,4,3.;1,4,2.;1,5,2.;5,4,3.];;
+grph [0,1,2.5;0,4,3.;1,4,2.;1,5,2.;5,4,3.;5,6,7.];;
 (* List.iter (Printf.printf "%d\n") (fst (minimum_tour grph)) *)
-yolo grph' 0
+let (l,c) = approx_minimum_tour grph';;
+List.iter (Printf.printf "%d\n") l;
+Printf.printf "%f\n" c
 

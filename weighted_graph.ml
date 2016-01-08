@@ -121,7 +121,7 @@ module Make(F : Structures.Field) = struct
                (IntMap.fold (fun j x -> FIntSet.add (x,j))
                (adjac grph i) FIntSet.empty)
 
-   let minimum_tour : t -> (int list*F.t) =
+   let minimum_tour : t -> (int list * F.t) =
        fun grph ->
            let hasht = Hashtbl.create 0 and u = choose_v grph in
                Hashtbl.add hasht ((IntSet.singleton u),u) ([u],F.e_add);
@@ -141,11 +141,56 @@ module Make(F : Structures.Field) = struct
                             Hashtbl.add hasht (visit_set,last_visit) (a,b);
                             (a,b)
                and initi = vertices grph in
-                   IntMap.fold (fun v x (l,c) -> let (l',c') = aux (initi,v) in
+                   IntMap.fold (fun v x (l,c) ->
+                   let (l',c') = aux (initi,v) in
                        F.(if c' +. x >=. c
                               then (l,c)
                               else (u::l',c' +. x)))
                    (adjac grph u) ([],F.max_field)
+
+   let approx_minimum_tour : t -> (int list * F.t) =
+       fun grph ->
+               let hasht = Hashtbl.create 0 in
+               let rec one_more_edge : int list -> (int list * F.t * int) =
+                   function
+                      | u::v::q ->
+                       let (w,c) = IntMap.fold (fun w x (w',c) -> 
+                       if mem_e grph w v && F.(c >=. x +. find_e grph w v)
+                       && not (Hashtbl.mem hasht w)
+                           then F.(w, x +. find_e grph w v -. find_e grph u v)
+                           else (w',c)) (adjac grph u) (-1,F.max_field)
+                       and (l',c',w') = one_more_edge (v::q) in
+                           if F.(c' >=. c && c <>. F.max_field)
+                               then u::w::v::q,c,w
+                               else u::l',c',w'
+                      | l       -> l,F.max_field,-1
+               and two_more_edges : int list -> (int list * F.t * int) =
+                   function
+                      | u::q ->
+                       let (w,c) = IntMap.fold (fun w x (w',c) -> 
+                           if F.(c >=. x) && not (Hashtbl.mem hasht w) then (w,x) else (w',c))
+                           (adjac grph u) (-1,F.max_field)
+                       and (l',c',w') = two_more_edges q in
+                           if F.(c' >=. c && c <>. max_field)
+                               then u::w::u::q,c,w
+                               else u::l',c',w'
+                      | l        -> l,F.max_field, -1
+                and final : (int list * F.t) -> (int list * F.t) =
+                    fun (tour,tot_cost) ->
+                       let open F in
+                       let (new_tour,c,w) = one_more_edge tour in
+                           if c <>. max_field
+                               then (Hashtbl.add hasht w ();
+                                     final (new_tour,tot_cost +. c))
+                           else let (new_tour',c',w') = two_more_edges tour in
+                               if c' <>. max_field
+                           then (Hashtbl.add hasht w' ();
+                                 final (new_tour',tot_cost +. c' +. c'))
+                           else (new_tour,tot_cost)
+                and u : int = choose_v grph in
+                    Hashtbl.add hasht u ();
+                    final ([u],F.e_add)
+                                             
 
    let yolo : t -> int -> unit =
        fun grph i ->
