@@ -1,12 +1,16 @@
 module Make(F : Structures.Field) = struct
     module IntMap = Map.Make(Ex_structures.Int)
     module IntSet = Set.Make(Ex_structures.Int)
+    module FInt = Ex_structures.MakePair(F)(Ex_structures.Int)
+    module FIntSet = Set.Make(FInt)
 
     type t = (F.t IntMap.t) IntMap.t
 
     let print : t -> unit =
             IntMap.iter (fun v nei -> Printf.printf "%d\n" v; IntMap.iter (fun u x -> Printf.printf "\t%d\t" u; F.print x; print_newline ()) nei)
 
+    let print_map : F.t IntMap.t -> unit =
+        IntMap.iter (fun k x -> Printf.printf "%d\t" k; F.print x; print_newline ())
 
     let empty : t =
         IntMap.empty
@@ -102,20 +106,20 @@ module Make(F : Structures.Field) = struct
 
    let min_dists : t -> int -> F.t IntMap.t =
        fun grph i ->
-           let rec aux : F.t IntMap.t -> F.t IntMap.t -> F.t IntMap.t =
+           let rec aux : F.t IntMap.t -> FIntSet.t -> F.t IntMap.t =
                fun a nei->
                    try
-                       let open IntMap in
-                       let (nrst,x) = min_binding nei in
-                           if mem nrst grph
-                           then aux a (remove nrst nei)
-                           else aux (add nrst x a)
-                               (fold
-                               (fun v y -> add v (F.(x +. y)))
-                               (adjac grph nrst) (remove nrst nei))
+                       let (x,nrst) = FIntSet.min_elt nei in
+                           if IntMap.mem nrst a
+                           then aux a (FIntSet.remove (x,nrst) nei)
+                           else aux (IntMap.add nrst x a)
+                               (IntMap.fold
+                               (fun v y -> FIntSet.add (F.(x +. y),v))
+                               (adjac grph nrst) (FIntSet.remove (x,nrst) nei))
                    with Not_found -> a
-            in aux (IntMap.singleton i F.e_add) (adjac grph i)
-           
+            in aux (IntMap.singleton i F.e_add)
+               (IntMap.fold (fun j x -> FIntSet.add (x,j))
+               (adjac grph i) FIntSet.empty)
 
    let minimum_tour : t -> (int list*F.t) =
        fun grph ->
@@ -142,4 +146,8 @@ module Make(F : Structures.Field) = struct
                               then (l,c)
                               else (u::l',c' +. x)))
                    (adjac grph u) ([],F.max_field)
+
+   let yolo : t -> int -> unit =
+       fun grph i ->
+          print_map (min_dists grph i)
 end

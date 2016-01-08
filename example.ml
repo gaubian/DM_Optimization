@@ -49,4 +49,6 @@ add_v empty
 ;;
 let grph' = List.fold_left (fun grp (i,j,x) -> add_e grp i j x)
 grph [0,1,2.5;0,4,3.;1,4,2.;1,5,2.;5,4,3.];;
-List.iter (Printf.printf "%d%!\n") (fst (minimum_tour grph'))
+(* List.iter (Printf.printf "%d\n") (fst (minimum_tour grph)) *)
+yolo grph' 0
+

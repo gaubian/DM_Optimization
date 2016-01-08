@@ -8,6 +8,7 @@ module FloatField = struct
     let e_add = 0.
     let e_mul = 1.
     let max_field = max_float /. 2.
+    let compare = compare
     let ( =. ) = ( = )
     let ( <>. ) = ( <> )
     let ( >=. ) = ( >= )
@@ -33,5 +34,14 @@ module RationalField = struct
     let ( /. ) a (c,d) = a *. (d,c)
     let ( >=. ) a b = let (c,d) = a -. b in
         (c >= 0 && d >= 0) || (c <= 0 && d <= 0)
-   let print (a,b) = Printf.printf "%d/%d" a b
+    let compare a b = if a =. b then 0 else if a >=. b then 1 else -1
+    let print (a,b) = Printf.printf "%d/%d" a b
+end
+
+module MakePair (A : Set.OrderedType) (B : Set.OrderedType) =
+struct
+    type t = (A.t * B.t)
+    let compare (a,b) (c,d) = match A.compare a c with
+        | 0 -> B.compare b d
+        | x -> x
 end
