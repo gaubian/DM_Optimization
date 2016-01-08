@@ -46,6 +46,13 @@ module Make(F : Structures.Field) = struct
         fun grph i ->
             IntMap.find i grph
 
+    let adjac_set : t -> int -> IntSet.t =
+        fun grph i ->
+            IntMap.find i grph
+            |> IntMap.bindings
+            |> List.map fst
+            |> IntSet.of_list
+
     let mem_e : t -> int -> int -> bool =
         fun grph i j ->
             IntMap.mem j (adjac grph i)
