@@ -95,6 +95,15 @@ module Make(F : Structures.Field) = struct
         fun grph ->
             fst (IntMap.choose grph)
 
+    let connected : t -> int -> IntSet.t =
+        fun grph i ->
+            let rec aux : int -> IntSet.t -> IntSet.t =
+                fun i a ->
+                    if IntSet.mem i a
+                        then a
+                        else IntSet.fold aux (adjac_set grph i) a
+            in aux i (IntSet.singleton i)
+
     let rec return_cut : t -> int -> (int * int * IntSet.t * F.t) =
         fun grph u ->
             if nb_v grph = 2

@@ -41,6 +41,8 @@ print yolo;;
 module FloatGraph = Weighted_graph.Make(Ex_structures.FloatField)
 module FLower_bound = Lower_bound.Make(Ex_structures.FloatField)
 module FMatrix = Matrix.Make(Ex_structures.FloatField)
+module IntPairMap = Map.Make(Ex_structures.IntPair)
+
 
 open FloatGraph
 
@@ -68,6 +70,6 @@ add_v empty
 let grph' = List.fold_left (fun grp (i,j,x) -> add_e grp i j x)
 grph [0,1,1.;1,2,1.;2,3,1.;3,0,1.;0,2,1.];;
 
-let (a,b) = FLower_bound.naive_solve grph';;
+let (a,b) = FLower_bound.solve grph';;
 Printf.printf "Resultat:\n";;
-FMatrix.print a
+IntPairMap.iter (fun (a,b) -> Printf.printf "(%d,%d)\t%f\n" a b) a

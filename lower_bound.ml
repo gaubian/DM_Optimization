@@ -67,7 +67,7 @@ module Make(F : Structures.Field) = struct
                                       (mat |<- (!compt,i)) F.e_mul));
                 mat
 
-    let solve_w_constr : FGraph.t -> IntSetSet.t -> (FMatrix.t * F.t) =
+   let solve_w_constr:FGraph.t -> IntSetSet.t -> (F.t IntPairMap.t * F.t) =
          fun grph constr ->
              let open FMatrix in
              let (e_to_i,i_to_e) as corr = edges_to_int grph in
@@ -94,13 +94,27 @@ module Make(F : Structures.Field) = struct
                  debug "degree_b" constr_b;
                  debug "obj" obj;
              let x = FSimplex.simplex problem FSimplex.trivial_choic in
-                 (x, ((trans obj) |* x) |. (0,0)) 
+                 (IntPairMap.map (fun i -> x |. (i,0)) e_to_i, ((trans obj) |* x) |. (0,0)) 
 
-    let naive_solve : FGraph.t -> (FMatrix.t * F.t) =
+    let naive_solve : FGraph.t -> (F.t IntPairMap.t * F.t) =
         fun grph ->
             let vertices = FGraph.vertices grph in
             let u = IntSet.choose vertices in
             let constr_wo_u = subsets (IntSet.remove u vertices) in
             let constr = IntSetSet.remove (IntSet.empty) constr_wo_u in
                 solve_w_constr grph constr
+
+    let rec step : FGraph.t -> IntSetSet.t -> (F.t IntPairMap.t * F.t) =
+        fun grph constraints ->
+            let (w,cost) = solve_w_constr grph constraints in
+            let grph' = IntMap.mapi (fun i -> IntMap.mapi (fun j _ -> 
+                IntPairMap.find (i,j) w)) grph in
+            let (cut,size) = FGraph.min_cut grph' in
+                if F.(size >=. e_mul +. e_mul)
+                    then (w,cost)
+                    else step grph (IntSetSet.add cut constraints)
+
+    let solve : FGraph.t -> (F.t IntPairMap.t * F.t) =
+        fun grph ->
+            step grph (IntSetSet.empty)
 end
