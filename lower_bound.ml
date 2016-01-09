@@ -9,8 +9,6 @@ module Make(F : Structures.Field) = struct
 
     type corr_edg_int = (int IntPairMap.t * (int*int) IntMap.t)
 
-    let debug w mat = Printf.printf "%s:\n" w;FMatrix.print mat
-
     let rec subsets : IntSet.t -> IntSetSet.t =
         fun set ->
             let open IntSet in
@@ -71,10 +69,6 @@ module Make(F : Structures.Field) = struct
          fun grph constr ->
              let open FMatrix in
              let (e_to_i,i_to_e) as corr = edges_to_int grph in
-                 Printf.printf "e_to_i:\n";
-                 IntPairMap.iter (fun (a,b) -> Printf.printf "(%d,%d) -> %d\n" a b) e_to_i;
-                 Printf.printf "i_to_e:\n";
-                 IntMap.iter (fun c (a,b) -> Printf.printf "(%d,%d) <- %d\n" a b c) i_to_e;
              let constr_mat = constr_to_mat grph corr constr in
              let constr_b = make (nb_l constr_mat) 1 F.(e_mul +. e_mul) in
              let degree_mat = degrees_to_mat grph corr in
@@ -88,11 +82,6 @@ module Make(F : Structures.Field) = struct
              and constr_mor = (constr_mat,constr_b) in
              let problem = FSimplex.init true constr_eq constr_les 
                  constr_mor obj in
-                 debug "constr_mat" constr_mat;
-                 debug "constr_b" constr_b;
-                 debug "degree_mat" constr_mat;
-                 debug "degree_b" constr_b;
-                 debug "obj" obj;
              let x = FSimplex.simplex problem FSimplex.trivial_choic in
                  (IntPairMap.map (fun i -> x |. (i,0)) e_to_i, ((trans obj) |* x) |. (0,0)) 
 

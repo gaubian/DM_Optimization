@@ -3,13 +3,13 @@ module Int = struct
     let compare = compare
 end
 
-module F (* loatField *) = struct
+module FloatField = struct
     type t = float
     let e_add = 0.
     let e_mul = 1.
     let max_field = max_float /. 2.
     let compare = compare
-    let ( =. ) = ( = )
+    let ( =. ) a b = (abs_float (a -. b)) < 0.000001
     let ( <>. ) = ( <> )
     let ( >=. ) = ( >= )
     let ( +. ) = ( +. )
@@ -21,7 +21,7 @@ module F (* loatField *) = struct
     let scan ic = Scanf.fscanf ic "%f" (fun i -> i)
 end
 
-module (* Rational *) FloatField = struct
+module RationalField = struct
     type t = int * int
     let e_add = (0,1)
     let e_mul = (1,1)

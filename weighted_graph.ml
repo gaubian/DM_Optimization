@@ -6,12 +6,6 @@ module Make(F : Structures.Field) = struct
 
     type t = (F.t IntMap.t) IntMap.t
 
-    let print : t -> unit =
-            IntMap.iter (fun v nei -> Printf.printf "%d\n" v; IntMap.iter (fun u x -> Printf.printf "\t%d\t" u; F.print stdout x; print_newline ()) nei)
-
-    let print_map : F.t IntMap.t -> unit =
-        IntMap.iter (fun k x -> Printf.printf "%d\t" k; F.print stdout x; print_newline ())
-
     let iter : t -> (int -> F.t IntMap.t -> unit) -> unit =
         fun grph f ->
             IntMap.iter f grph
@@ -147,7 +141,7 @@ module Make(F : Structures.Field) = struct
                (IntMap.fold (fun j x -> FIntSet.add (x,j))
                (adjac grph i) FIntSet.empty)
 
-   let minimum_tour : t -> (int list * F.t) =
+   let min_tour : t -> (int list * F.t) =
        fun grph ->
            let hasht = Hashtbl.create 0 and u = choose_v grph in
                Hashtbl.add hasht ((IntSet.singleton u),u) ([u],F.e_add);
@@ -174,7 +168,7 @@ module Make(F : Structures.Field) = struct
                               else (u::l',c' +. x)))
                    (adjac grph u) ([],F.max_field)
 
-   let approx_minimum_tour : t -> (int list * F.t) =
+   let approx_min_tour : t -> (int list * F.t) =
        fun grph ->
                let hasht = Hashtbl.create 0 in
                let rec one_more_edge : int list -> (int list * F.t * int) =
@@ -216,9 +210,4 @@ module Make(F : Structures.Field) = struct
                 and u : int = choose_v grph in
                     Hashtbl.add hasht u ();
                     final ([u],F.e_add)
-                                             
-
-   let yolo : t -> int -> unit =
-       fun grph i ->
-          print_map (min_dists grph i)
 end
