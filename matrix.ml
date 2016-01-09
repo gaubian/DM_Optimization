@@ -383,7 +383,7 @@ module Make (F : Structures.Field) = struct
             for j = 0 to nb_c mat do
                 if j = nb_c mat
                     then print_newline ()
-                    else (print (mat |. (i,j)); print_string "\t");
+                    else (print stdout (mat |. (i,j)); print_string "\t");
             done;
             done
 end

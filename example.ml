@@ -38,13 +38,6 @@ Printf.printf "Résultat:\n";;
 print yolo;;
 *)
 
-module FloatGraph = Weighted_graph.Make(Ex_structures.FloatField)
-module FLower_bound = Lower_bound.Make(Ex_structures.FloatField)
-module FMatrix = Matrix.Make(Ex_structures.FloatField)
-module IntPairMap = Map.Make(Ex_structures.IntPair)
-
-
-open FloatGraph
 
 (*
 let grph =
@@ -61,7 +54,7 @@ let (l,c) = approx_minimum_tour grph';;
 List.iter (Printf.printf "%d\n") l;
 Printf.printf "%f\n" c
 *)
-
+(*
 let grph =
 List.fold_left
 add_v empty
@@ -73,3 +66,16 @@ grph [0,1,1.;1,2,1.;2,3,1.;3,0,1.;0,2,1.];;
 let (a,b) = FLower_bound.solve grph';;
 Printf.printf "Resultat:\n";;
 IntPairMap.iter (fun (a,b) -> Printf.printf "(%d,%d)\t%f\n" a b) a
+*)
+
+module FloatGraph = Weighted_graph.Make(Ex_structures.FloatField)
+module FLower_bound = Lower_bound.Make(Ex_structures.FloatField)
+module FMatrix = Matrix.Make(Ex_structures.FloatField)
+module IntPairMap = Map.Make(Ex_structures.IntPair)
+module FParse = Parse.Make(Ex_structures.FloatField)
+
+open FloatGraph
+
+let grph = FParse.parse_2D "test" FParse.euclid;;
+
+FloatGraph.iter grph (fun i -> Printf.printf "%d\n" i; IntMap.iter (fun j x -> Printf.printf "\t%d\t" j; Ex_structures.FloatField.print stdout x; print_newline ()))

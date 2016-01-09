@@ -7,10 +7,10 @@ module Make(F : Structures.Field) = struct
     type t = (F.t IntMap.t) IntMap.t
 
     let print : t -> unit =
-            IntMap.iter (fun v nei -> Printf.printf "%d\n" v; IntMap.iter (fun u x -> Printf.printf "\t%d\t" u; F.print x; print_newline ()) nei)
+            IntMap.iter (fun v nei -> Printf.printf "%d\n" v; IntMap.iter (fun u x -> Printf.printf "\t%d\t" u; F.print stdout x; print_newline ()) nei)
 
     let print_map : F.t IntMap.t -> unit =
-        IntMap.iter (fun k x -> Printf.printf "%d\t" k; F.print x; print_newline ())
+        IntMap.iter (fun k x -> Printf.printf "%d\t" k; F.print stdout x; print_newline ())
 
     let iter : t -> (int -> F.t IntMap.t -> unit) -> unit =
         fun grph f ->

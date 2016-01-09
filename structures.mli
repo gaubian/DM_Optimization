@@ -11,5 +11,7 @@ module type Field = sig
     val ( -. ) : t -> t -> t
     val ( *. ) : t -> t -> t
     val ( /. ) : t -> t -> t
-    val print : t -> unit
+    val sqrt : t -> t
+    val print : out_channel -> t -> unit
+    val scan : in_channel -> t
 end
