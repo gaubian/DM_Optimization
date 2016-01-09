@@ -1,5 +1,9 @@
 module Make (F : Structures.Field) = struct
+    (* Matrix module.
+       Now, functions beginning with | are infix matrix functions *)
     open F
+
+    (* Matrix type: first two arguments are size of matrix *)
     type t = int * int * F.t array array
 
     exception Finished of int

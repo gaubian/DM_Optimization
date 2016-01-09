@@ -1,8 +1,11 @@
+(* some Structure's example*)
+
 module Int = struct
     type t = int
     let compare = compare
 end
 
+(* Float numbers *)
 module FloatField = struct
     type t = float
     let e_add = 0.
@@ -21,6 +24,7 @@ module FloatField = struct
     let scan ic = Scanf.fscanf ic "%f" (fun i -> i)
 end
 
+(* Rational numbers *)
 module RationalField = struct
     type t = int * int
     let e_add = (0,1)

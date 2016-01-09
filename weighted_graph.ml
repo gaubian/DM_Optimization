@@ -98,6 +98,7 @@ module Make(F : Structures.Field) = struct
                         else IntSet.fold aux (adjac_set grph i) a
             in aux i (IntSet.singleton i)
 
+    (* Stoer-Wagner *)
     let rec return_cut : t -> int -> (int * int * IntSet.t * F.t) =
         fun grph u ->
             if nb_v grph = 2
@@ -124,6 +125,7 @@ module Make(F : Structures.Field) = struct
                                               else cut'),c')
             in aux grph (choose_v grph)
 
+   (* Dijkstra *)
    let min_dists : t -> int -> F.t IntMap.t =
        fun grph i ->
            let rec aux : F.t IntMap.t -> FIntSet.t -> F.t IntMap.t =
@@ -141,6 +143,7 @@ module Make(F : Structures.Field) = struct
                (IntMap.fold (fun j x -> FIntSet.add (x,j))
                (adjac grph i) FIntSet.empty)
 
+   (* Held-Karp *)
    let min_tour : t -> (int list * F.t) =
        fun grph ->
            let hasht = Hashtbl.create 0 and u = choose_v grph in
@@ -168,6 +171,7 @@ module Make(F : Structures.Field) = struct
                               else (u::l',c' +. x)))
                    (adjac grph u) ([],F.max_field)
 
+   (* My heuristic *)
    let approx_min_tour : t -> (int list * F.t) =
        fun grph ->
                let hasht = Hashtbl.create 0 in

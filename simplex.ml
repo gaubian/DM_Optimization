@@ -14,14 +14,17 @@ module Make (F : Structures.Field) = struct
    type rest = FMatrix.t * FMatrix.t
    type t = {minim:bool; obj:FMatrix.t; eq:rest; les:rest; mor:rest}
 
+   (* Extract a set of columns of a matrix *)
    let extracted_c : FMatrix.t -> IntSet.t -> FMatrix.t =
       fun mat set ->
          IntSet.fold (fun i -> to_left (mat |.| i)) set (ones (nb_l mat) 0)
 
+   (* Same for lines *)
    let extracted_l : FMatrix.t -> IntSet.t -> FMatrix.t =
       fun mat set ->
          IntSet.fold (fun i -> to_up (mat |.- i)) set (ones 0 (nb_c mat))
 
+   (* Computes reduced cost *)
    let reduced_cost : problem -> basis -> FMatrix.t =
       fun (c,a,_) (b,n) ->
          let a_b = extracted_c a b and c_b = extracted_l c b
@@ -29,6 +32,7 @@ module Make (F : Structures.Field) = struct
          let y = linear_solver (trans a_b) c_b in
             c_n |- ((trans a_n) |* y)
 
+   (* Computes descending direction *)
    let desc_dir : problem -> basis ->  int -> FMatrix.t =
       fun (_,a,_) (b,n) j ->
          IntSet.(
@@ -42,6 +46,7 @@ module Make (F : Structures.Field) = struct
             iter (fun i -> (d |<- (i,0))(if !k=j then e_mul else e_add);incr k) n;
             d)
 
+   (* Given a basis, who gets in, who gets out, compute new basis *)
    let change_basis : basis -> int -> int -> basis =
       fun (b,n) i_in i_out ->
          IntSet.(add i_in (remove i_out b),add i_out (remove i_in n))
@@ -53,6 +58,7 @@ module Make (F : Structures.Field) = struct
                |0 -> a
                |_ -> j_th_littlest (IntSet.remove a b) (i-1)
 
+   (* Eliminates useless equations *)
    let make_surj : problem -> problem =
       fun (c,a,b) ->
          independant_lines a
@@ -60,6 +66,7 @@ module Make (F : Structures.Field) = struct
          |> fun l -> (List.map ((|.-) a) l,List.map ((|.-) b) l)
          |> fun (l',l'') -> (c,concat_down l',concat_down l'')
 
+   (* Solve a problem considering constraints are just equalities given starting point*)
    let rec solve : problem -> basis -> FMatrix.t -> choice -> FMatrix.t =
       fun prob bas x ({c_in = choic_in;c_out = choic_out} as choice_f) ->
          let r = reduced_cost prob bas in
@@ -81,6 +88,7 @@ module Make (F : Structures.Field) = struct
                                 solve prob (change_basis bas j k)
                                  (x |+ (y |*. d)) choice_f
 
+   (* Given a point, computes an associated basis *)
    let basis_from_point : FMatrix.t -> FMatrix.t -> basis =
       fun mat' x ->
          let open IntSet in
@@ -104,6 +112,7 @@ module Make (F : Structures.Field) = struct
         |> List.sort Pervasives.compare
         |> construct (empty,empty) 0
 
+   (* Computes a starting point *)
    let start_point : problem -> choice -> (FMatrix.t*basis) =
       fun (c,a,b) choice_f ->
          let c' = init (nb_l a + nb_c a) 1
@@ -120,16 +129,24 @@ module Make (F : Structures.Field) = struct
                then (x,(basis_from_point a x))
                else raise No_solution
 
-   let trivial_choic : choice =
+   (* Two pivotting choices *)
+   let min_sec_choic : choice =
+      let my_f = fun l -> fst (List.fold_left (fun (a,b) (c,d) ->
+          if (b,a) > (d,c) then (c,d) else (a,b)) (max_int,max_field) l) in
+         {c_in = my_f; c_out = my_f}
+
+   let lexi_choic : choice =
       let my_f = fun l -> fst (List.fold_left min (max_int,max_field) l) in
          {c_in = my_f; c_out = my_f}
 
+   (* Solve a problem considering constraints are just equalities *)
    let simplex_w_eq : problem -> choice -> FMatrix.t =
       fun prob choice_f ->
          let prob' = make_surj prob in
          let st,bas = start_point prob' choice_f in
             solve prob' bas st choice_f
 
+   (* Final function *)
    let simplex : t -> choice -> FMatrix.t =
       fun ({eq=a_eq,b_eq;les=a_les,b_les;mor=a_mor,b_mor;_} as pb) choice_f->
          let a_ineq = to_down a_les ((e_add -. e_mul) |*. a_mor)

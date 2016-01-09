@@ -2,6 +2,9 @@ module Make (F : Structures.Field) = struct
     module FGraph = Weighted_graph.Make(F)
     module IntPairMap = Map.Make(Ex_structures.IntPair)
 
+    (* Suppose  our file is given as: an int giving number of vertices,
+     followed by pairs of int representing vertices'pair with associated
+     weight. This solves this case *)
     let parse_adjacency : in_channel -> FGraph.t =
         fun ic ->
             let open FGraph in
@@ -20,16 +23,14 @@ module Make (F : Structures.Field) = struct
             in
                 parse_edge (add_v_up_to empty (n-1))
 
-    let erase_file : string -> unit =
-        fun filename ->
-           flush @@ open_out filename
-
+    (* Euclidean distance *)
     let euclid : (F.t*F.t) -> (F.t*F.t) -> F.t =
         fun (a,b) (c,d) ->
             let open F in
             let x = a -. c and y = b -. d in
                 sqrt ((x *. x) +. (y *. y))
 
+    (* parse until some line is found *)
     let parse_until : in_channel -> string -> unit =
         fun ic w ->
             let flag = ref false in
@@ -37,11 +38,12 @@ module Make (F : Structures.Field) = struct
                  Scanf.fscanf ic "%s@\n" (fun i -> flag := i = w);
             done
 
+    (* Parse if it's given as 2D euclidean *)
     let parse_2D : in_channel -> int -> FGraph.t =
         fun ic dim ->
             let open F in
             let l= ref [] and oc = open_out "last.in" in
-                parse_until "NODE_COORD_SECTION";
+                parse_until ic "NODE_COORD_SECTION";
                 Printf.fprintf oc "%d" dim;
                 for i=0 to dim-1 do
                     Scanf.fscanf ic " %d " (fun i ->
@@ -58,6 +60,7 @@ module Make (F : Structures.Field) = struct
                 flush oc;
                 res
 
+    (* Parse if it's given as explicit lower matrix *)
     let parse_lower : in_channel -> int -> FGraph.t =
         fun ic dim ->
             let oc = open_out "last.in" in
@@ -79,6 +82,7 @@ module Make (F : Structures.Field) = struct
                 flush oc;
                 res
 
+    (* Parse if it's given as explicit upper matrix *)
     let parse_upper : in_channel -> int -> FGraph.t =
         fun ic dim ->
             let oc = open_out "last.in" in
@@ -98,6 +102,7 @@ module Make (F : Structures.Field) = struct
                 flush oc;
                 res
 
+    (* Final parse *)
     let parse : string -> FGraph.t =
         fun w ->
             let ic=open_in w in

@@ -9,6 +9,7 @@ module Make(F : Structures.Field) = struct
 
     type corr_edg_int = (int IntPairMap.t * (int*int) IntMap.t)
 
+    (* Subsets of a set *)
     let rec subsets : IntSet.t -> IntSetSet.t =
         fun set ->
             let open IntSet in
@@ -20,6 +21,7 @@ module Make(F : Structures.Field) = struct
                      (add elt i)) subs IntSetSet.empty in
                          IntSetSet.union subs subs'
 
+    (* I must know which matrix's column correspond to which edge *)
     let edges_to_int : FGraph.t -> corr_edg_int =
         fun grph ->
             let open IntMap in
@@ -35,6 +37,7 @@ module Make(F : Structures.Field) = struct
                      ))
                 grph (IntPairMap.empty,IntMap.empty)
 
+    (* Take a set of vertices, and returns corresponding edge_cut *)
     let cut_to_edges : FGraph.t -> IntSet.t -> (int * int) list =
         fun grph cut ->
             let open IntSet in
@@ -42,6 +45,7 @@ module Make(F : Structures.Field) = struct
             @@ elements (filter (fun j -> not @@ IntSet.mem j cut) (FGraph.adjac_set grph i)
             ))) cut []
 
+    (* Return the constraints' matrix in the LP *)
     let constr_to_mat:FGraph.t-> corr_edg_int -> IntSetSet.t -> FMatrix.t =
         fun grph (e_to_i,i_to_e) constrs ->
             let open FMatrix in
@@ -82,9 +86,10 @@ module Make(F : Structures.Field) = struct
              and constr_mor = (constr_mat,constr_b) in
              let problem = FSimplex.init true constr_eq constr_les 
                  constr_mor obj in
-             let x = FSimplex.simplex problem FSimplex.trivial_choic in
+             let x = FSimplex.simplex problem FSimplex.lexi_choic in
                  (IntPairMap.map (fun i -> x |. (i,0)) e_to_i, ((trans obj) |* x) |. (0,0)) 
 
+    (* Using solve with all possible subsets *)
     let naive_solve : FGraph.t -> (F.t IntPairMap.t * F.t) =
         fun grph ->
             let vertices = FGraph.vertices grph in
@@ -93,6 +98,7 @@ module Make(F : Structures.Field) = struct
             let constr = IntSetSet.remove (IntSet.empty) constr_wo_u in
                 solve_w_constr grph constr
 
+    (* One step of our final algorithm *)
     let rec step : FGraph.t -> IntSetSet.t -> (F.t IntPairMap.t * F.t) =
         fun grph constraints ->
             let (w,cost) = solve_w_constr grph constraints in
@@ -103,6 +109,7 @@ module Make(F : Structures.Field) = struct
                     then (w,cost)
                     else step grph (IntSetSet.add cut constraints)
 
+    (* Final function *)
     let solve : FGraph.t -> (F.t IntPairMap.t * F.t) =
         fun grph ->
             step grph (IntSetSet.empty)
