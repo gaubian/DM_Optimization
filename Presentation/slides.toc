@@ -1,0 +1,8 @@
+\beamer@endinputifotherversion {3.36pt}
+\select@language {french}
+\beamer@sectionintoc {1}{Le probl\IeC {\`e}me}{2}{0}{1}
+\beamer@sectionintoc {2}{Le langage}{4}{0}{2}
+\beamer@sectionintoc {3}{Calcul direct du tour}{6}{0}{3}
+\beamer@sectionintoc {4}{Utiliser le simplexe pour TSP}{8}{0}{4}
+\beamer@sectionintoc {5}{Am\IeC {\'e}lioration duale}{10}{0}{5}
+\beamer@sectionintoc {6}{Questions}{13}{0}{6}
